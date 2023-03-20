@@ -82,7 +82,7 @@ class Trader:
                                 print("BUY", product, str(order_size) + "x", ask, 'position:', position)
                                 orders.append(Order(product, ask, order_size))
                             else:
-                                print('MISSED buy of ',product, str(order_size) + "x", ask, 'position:', position)
+                                print('MISSED buy of ',product, str(vol) + "x", ask, 'position:', position)
                     assets[product].update_ask_prices(asks[0])
 
                 if len(order_depth.buy_orders) != 0:
