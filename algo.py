@@ -46,6 +46,10 @@ class Asset:
         else:
             self.bid_prices.pop(0)
             self.bid_prices.append(bid_price)
+    def __str__(self) -> str:
+        return ('Limit '+str(self.limit)+' long average '+str(self.period)+' short average '
+                +str(self.fast_period)
+                + '\n' + str(self.bid_prices) + "\n"+ str(self.ask_prices))
 
 assets = {
     "PEARLS":Asset(20, 10, 10),
@@ -55,8 +59,13 @@ class Trader:
     """
     The trader class, containing a run method which runs the trading algo
     """
-    def __init__(self, asset_dicts = assets):
-        self.asset_dicts = assets
+    def __init__(self, asset_dicts = None):
+        if asset_dicts is None:
+            asset_dicts = {
+                "PEARLS":Asset(20, 10, 10),
+                "BANANAS":Asset(20, 90, 15),
+            }
+        self.asset_dicts = asset_dicts
     def run(self, state: TradingState) -> Dict[str, List[Order]]:
         """
         Only method required. It takes all buy and sell orders for all symbols as an input,
