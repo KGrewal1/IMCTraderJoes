@@ -68,7 +68,6 @@ class Trader:
 
                 # If statement checks if there are any SELL orders in the PEARLS market
                 if len(order_depth.sell_orders) > 0:
-                    print('sell if')
                     available_to_buy = True # other people are selling ergo we can buy
                     # buy everything below our acceptable price
                     asks = list(order_depth.sell_orders.keys())
@@ -112,12 +111,13 @@ class Trader:
                     #adjust volumes later
                     #bid
                     order_size = np.floor(5*(1-position/20))
-                    bid = max(order_depth.buy_orders.keys())+spread-5
+                    bid = max(order_depth.buy_orders.keys())+1
                     orders.append(Order(product, bid, order_size))
+                    print(spread)
                     print("MM BUY", product, str(order_size) + "x", bid, 'position:', position)
                     #ask
                     order_size = -np.floor(5*(1+position/20))
-                    ask = min(order_depth.sell_orders.keys())-spread+5
+                    ask = min(order_depth.sell_orders.keys())-1
                     orders.append(Order(product, ask, order_size))
                     print("MM SELL", product, str(-order_size) + "x", ask,  'position:', position)
 
