@@ -51,10 +51,10 @@ class Asset:
                 +str(self.fast_period)
                 + '\n' + str(self.bid_prices) + "\n"+ str(self.ask_prices))
 
-assets = {
-    "PEARLS":Asset(20, 10, 10),
-    "BANANAS":Asset(20, 90, 15),
-}
+# assets = {
+#     "PEARLS":Asset(20, 10, 10),
+#     "BANANAS":Asset(20, 90, 15),
+# }
 class Trader:
     """
     The trader class, containing a run method which runs the trading algo
@@ -109,7 +109,7 @@ class Trader:
                             order_size = min(-vol, self.asset_dicts[product].limit-position)
                             if order_size > 0:
                                 position = position + order_size
-                                if self.printing: print("BUY", product, str(order_size) + "x", ask)
+                                # if self.printing: print("BUY", product, str(order_size) + "x", ask)
                                 orders.append(Order(product, ask, order_size))
                     self.asset_dicts[product].update_ask_prices(asks[0])
 
@@ -124,7 +124,7 @@ class Trader:
                             order_size = min(vol, self.asset_dicts[product].limit+position)
                             if order_size > 0:
                                 position = position - order_size
-                                if self.printing: print("SELL", product, str(order_size) + "x", bid)
+                                # if self.printing: print("SELL", product, str(order_size) + "x", bid)
                                 orders.append(Order(product, bid, -order_size))
                     self.asset_dicts[product].update_bid_prices(bids[0])
 
@@ -172,9 +172,10 @@ class Trader:
                     fast_avg = sum(self.asset_dicts[product].ask_prices[-self.asset_dicts[product].fast_period:])/self.asset_dicts[product].fast_period
                     a,b = linreg(range(self.asset_dicts[product].period),self.asset_dicts[product].ask_prices)
                     ask_pred = a*self.asset_dicts[product].period + b
-                    if self.printing: print("delta", slow_avg, fast_avg)
-                    if slow_avg > fast_avg:
+                    # if self.printing: print("delta", slow_avg, fast_avg)
+                    if slow_avg < fast_avg:
                         available_to_buy = True
+                        if self.printing: print('try to buy')
                     else:
                         available_to_buy = False
 
@@ -187,14 +188,15 @@ class Trader:
                     fast_avg = sum(self.asset_dicts[product].bid_prices[-self.asset_dicts[product].fast_period:])/self.asset_dicts[product].fast_period
                     a,b = linreg(range(self.asset_dicts[product].period),self.asset_dicts[product].bid_prices)
                     bid_pred = a*self.asset_dicts[product].period + b
-                    if self.printing: print("delta", slow_avg, fast_avg)
-                    if slow_avg < fast_avg:
+                    # if self.printing: print("delta", slow_avg, fast_avg)
+                    if slow_avg > fast_avg:
                         available_to_sell = True
+                        if self.printing: print('try to sell')
                     else:
                         available_to_sell = False
 
                 # Check if the lowest ask (sell order) is lower than the above defined fair value
-                if available_to_buy and best_ask < 4935: # best_ask < bid_pred and
+                if available_to_buy: # best_ask < bid_pred and
 
                     order_size = min(-best_ask_volume, self.asset_dicts[product].limit-position)
                     if order_size > 0:
@@ -202,7 +204,7 @@ class Trader:
                         orders.append(Order(product, best_ask, order_size))
 
                 # Check if the highest bid is higher than the above defined fair value
-                if available_to_sell and best_bid > 4950: # best_bid > ask_pred and
+                if available_to_sell: # best_bid > ask_pred and
                     order_size = min(best_bid_volume, self.asset_dicts[product].limit+position)
                     if order_size > 0:
                         if self.printing: print("SELL", product, str(order_size) + "x", best_bid)
