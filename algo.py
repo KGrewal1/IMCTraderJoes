@@ -4,7 +4,10 @@ The log tracks all print commands
 """
 from typing import Dict, List
 from datamodel import OrderDepth, TradingState, Order
-
+# import pandas
+# import numpy
+# import math
+# import statistics
 def linreg(X, Y):
     """
     linear regression: not entirely convinvced numpy works properly in Prosperity
@@ -46,12 +49,14 @@ class Asset:
 
 assets = {
     "PEARLS":Asset(20, 10, 10),
-    "BANANAS":Asset(20, 100, 50),
+    "BANANAS":Asset(20, 90, 15),
 }
 class Trader:
     """
     The trader class, containing a run method which runs the trading algo
     """
+    def __init__(self, asset_dicts = assets):
+        self.asset_dicts = assets
     def run(self, state: TradingState) -> Dict[str, List[Order]]:
         """
         Only method required. It takes all buy and sell orders for all symbols as an input,
@@ -59,6 +64,7 @@ class Trader:
         """
         # Initialize the method output dict as an empty dict
         result = {}
+        # print(state.market_trades)
         # Iterate over all the keys (the available products) contained in the order depths
         for product in state.order_depths.keys():
 
@@ -90,12 +96,12 @@ class Trader:
                     for ask in asks:
                         if ask < acceptable_price:
                             vol = order_depth.sell_orders[ask]
-                            order_size = min(-vol, assets[product].limit-position)
+                            order_size = min(-vol, self.asset_dicts[product].limit-position)
                             if order_size > 0:
                                 position = position + order_size
                                 print("BUY", product, str(order_size) + "x", ask)
                                 orders.append(Order(product, ask, order_size))
-                    assets[product].update_ask_prices(asks[0])
+                    self.asset_dicts[product].update_ask_prices(asks[0])
 
                 if len(order_depth.buy_orders) != 0:
                     available_to_sell = True # other people are buying ergo we can sell
@@ -105,12 +111,12 @@ class Trader:
                     for bid in bids:
                         if bid > acceptable_price:
                             vol = order_depth.buy_orders[bid]
-                            order_size = min(vol, assets[product].limit+position)
+                            order_size = min(vol, self.asset_dicts[product].limit+position)
                             if order_size > 0:
                                 position = position - order_size
                                 print("SELL", product, str(order_size) + "x", bid)
                                 orders.append(Order(product, bid, -order_size))
-                    assets[product].update_bid_prices(bids[0])
+                    self.asset_dicts[product].update_bid_prices(bids[0])
 
 
 
@@ -140,39 +146,39 @@ class Trader:
                     available_to_buy = True # other people are selling ergo we can buy
                     best_ask = min(order_depth.sell_orders.keys())
                     best_ask_volume = order_depth.sell_orders[best_ask]
-                    assets[product].update_ask_prices(best_ask)
+                    self.asset_dicts[product].update_ask_prices(best_ask)
 
                 if len(order_depth.buy_orders) != 0:
                     available_to_sell = True # other people are buying ergo we can sell
                     best_bid = max(order_depth.buy_orders.keys())
                     best_bid_volume = order_depth.buy_orders[best_bid]
-                    assets[product].update_bid_prices(best_ask)
+                    self.asset_dicts[product].update_bid_prices(best_ask)
 
-                if len(assets[product].ask_prices)<assets[product].period:
+                if len(self.asset_dicts[product].ask_prices)<self.asset_dicts[product].period:
                     available_to_buy = False
                     ask_pred = 0
                 else:
-                    slow_avg = sum(assets[product].ask_prices)/assets[product].period
-                    fast_avg = sum(assets[product].ask_prices[-assets[product].fast_period:])/assets[product].fast_period
-                    a,b = linreg(range(assets[product].period),assets[product].ask_prices)
-                    ask_pred = a*assets[product].period + b
+                    slow_avg = sum(self.asset_dicts[product].ask_prices)/self.asset_dicts[product].period
+                    fast_avg = sum(self.asset_dicts[product].ask_prices[-self.asset_dicts[product].fast_period:])/self.asset_dicts[product].fast_period
+                    a,b = linreg(range(self.asset_dicts[product].period),self.asset_dicts[product].ask_prices)
+                    ask_pred = a*self.asset_dicts[product].period + b
                     print("delta", slow_avg, fast_avg)
-                    if slow_avg < fast_avg:
+                    if slow_avg > fast_avg:
                         available_to_buy = True
                     else:
                         available_to_buy = False
 
 
-                if len(assets[product].bid_prices)<assets[product].period:
+                if len(self.asset_dicts[product].bid_prices)<self.asset_dicts[product].period:
                     available_to_sell = False
                     bid_pred = 100000
                 else:
-                    slow_avg = sum(assets[product].bid_prices)/assets[product].period
-                    fast_avg = sum(assets[product].bid_prices[-assets[product].fast_period:])/assets[product].fast_period
-                    a,b = linreg(range(assets[product].period),assets[product].bid_prices)
-                    bid_pred = a*assets[product].period + b
+                    slow_avg = sum(self.asset_dicts[product].bid_prices)/self.asset_dicts[product].period
+                    fast_avg = sum(self.asset_dicts[product].bid_prices[-self.asset_dicts[product].fast_period:])/self.asset_dicts[product].fast_period
+                    a,b = linreg(range(self.asset_dicts[product].period),self.asset_dicts[product].bid_prices)
+                    bid_pred = a*self.asset_dicts[product].period + b
                     print("delta", slow_avg, fast_avg)
-                    if slow_avg > fast_avg:
+                    if slow_avg < fast_avg:
                         available_to_sell = True
                     else:
                         available_to_sell = False
@@ -180,14 +186,14 @@ class Trader:
                 # Check if the lowest ask (sell order) is lower than the above defined fair value
                 if available_to_buy and best_ask < 4935: # best_ask < bid_pred and
 
-                    order_size = min(-best_ask_volume, assets[product].limit-position)
+                    order_size = min(-best_ask_volume, self.asset_dicts[product].limit-position)
                     if order_size > 0:
                         print("BUY", product, str(order_size) + "x", best_ask)
                         orders.append(Order(product, best_ask, order_size))
 
                 # Check if the highest bid is higher than the above defined fair value
                 if available_to_sell and best_bid > 4950: # best_bid > ask_pred and
-                    order_size = min(best_bid_volume, assets[product].limit+position)
+                    order_size = min(best_bid_volume, self.asset_dicts[product].limit+position)
                     if order_size > 0:
                         print("SELL", product, str(order_size) + "x", best_bid)
                         orders.append(Order(product, best_bid, -order_size))
