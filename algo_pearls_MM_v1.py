@@ -68,12 +68,12 @@ class Trader:
 
                 # If statement checks if there are any SELL orders in the PEARLS market
                 if len(order_depth.sell_orders) > 0:
-
+                    print('sell if')
                     available_to_buy = True # other people are selling ergo we can buy
                     # buy everything below our acceptable price
                     asks = list(order_depth.sell_orders.keys())
                     asks = sorted(asks)
-                    min_profit = 
+                    min_profit = 0
                     for ask in asks:
                         if ask < acceptable_price-min_profit:
                             vol = order_depth.sell_orders[ask]
@@ -104,16 +104,22 @@ class Trader:
                     assets[product].update_bid_prices(bids[0])
                 
                 #MarketMaking
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
                 threshold = 6
-                spread = min(order_depth.sellorders.keys())-max(order_depth.buyorders.keys())
+                spread = min(list(order_depth.sell_orders.keys()))-max(list(order_depth.buy_orders.keys()))
                 if spread >= threshold:
                     #adjust volumes later
                     #bid
-                    bid = max(order_depth.buyorders.keys())+spread-5
-                    orders.append(Order(product, bid, np.floor(5*(1-position/20))))
+                    order_size = np.floor(5*(1-position/20))
+                    bid = max(order_depth.buy_orders.keys())+spread-5
+                    orders.append(Order(product, bid, order_size))
+                    print("MM BUY", product, str(order_size) + "x", bid, 'position:', position)
                     #ask
-                    ask = min(order_depth.sellorders.keys())-spread+5
-                    orders.append(Order(product, ask, -np.floor(5*(1+position/20))))
+                    order_size = -np.floor(5*(1+position/20))
+                    ask = min(order_depth.sell_orders.keys())-spread+5
+                    orders.append(Order(product, ask, order_size))
+                    print("MM SELL", product, str(-order_size) + "x", ask,  'position:', position)
 
                 # Add all the above orders to the result dict
                 result[product] = orders
