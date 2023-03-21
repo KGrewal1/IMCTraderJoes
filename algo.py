@@ -32,6 +32,10 @@ class Asset:
         self.bid_prices = []
         self.period = period
         self.fast_period = fast_period
+        self.last_buy = 0
+        self.last_sell = 0
+        self.last_buy_price = 0
+        self.last_sell_price = 1000000
     def update_ask_prices(self, ask_price):
         """update the period most recent ask prices"""
         if len(self.ask_prices)<self.period:
@@ -173,9 +177,10 @@ class Trader:
                     a,b = linreg(range(self.asset_dicts[product].period),self.asset_dicts[product].ask_prices)
                     ask_pred = a*self.asset_dicts[product].period + b
                     # if self.printing: print("delta", slow_avg, fast_avg)
-                    if slow_avg < fast_avg:
+                    if slow_avg < fast_avg and self.asset_dicts[product].last_sell>100:
                         available_to_buy = True
-                        if self.printing: print('try to buy')
+                        if self.printing:
+                            print('try to buy')
                     else:
                         available_to_buy = False
 
@@ -189,9 +194,10 @@ class Trader:
                     a,b = linreg(range(self.asset_dicts[product].period),self.asset_dicts[product].bid_prices)
                     bid_pred = a*self.asset_dicts[product].period + b
                     # if self.printing: print("delta", slow_avg, fast_avg)
-                    if slow_avg > fast_avg:
+                    if slow_avg > fast_avg and self.asset_dicts[product].last_buy>100:
                         available_to_sell = True
-                        if self.printing: print('try to sell')
+                        if self.printing:
+                            print('try to sell')
                     else:
                         available_to_sell = False
 
@@ -200,17 +206,30 @@ class Trader:
 
                     order_size = min(-best_ask_volume, self.asset_dicts[product].limit-position)
                     if order_size > 0:
-                        if self.printing: print("BUY", product, str(order_size) + "x", best_ask)
+                        if self.printing:
+                            print("BUY", product, str(order_size) + "x", best_ask)
                         orders.append(Order(product, best_ask, order_size))
-
+                        self.asset_dicts[product].last_buy = 0
+                    else:
+                        self.asset_dicts[product].last_buy += 1
+                else:
+                    self.asset_dicts[product].last_buy += 1
                 # Check if the highest bid is higher than the above defined fair value
                 if available_to_sell: # best_bid > ask_pred and
                     order_size = min(best_bid_volume, self.asset_dicts[product].limit+position)
                     if order_size > 0:
-                        if self.printing: print("SELL", product, str(order_size) + "x", best_bid)
+                        if self.printing:
+                            print("SELL", product, str(order_size) + "x", best_bid)
                         orders.append(Order(product, best_bid, -order_size))
+                        self.asset_dicts[product].last_sell = 0
+                    else:
+                        self.asset_dicts[product].last_sell += 1
+                else:
+                    self.asset_dicts[product].last_sell += 1
 
                 # Add all the above orders to the result dict
+                if self.printing:
+                    print("last sell", self.asset_dicts[product].last_sell, 'last buy', self.asset_dicts[product].last_buy)
                 result[product] = orders
 
         # Return the dict of orders
