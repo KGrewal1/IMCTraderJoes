@@ -146,6 +146,8 @@ class Trader:
                     orders.append(Order(product, ask, order_size))
                     print("MM SELL", product, str(-order_size) + "x", ask,  'position:', position)
 
+                
+
                 # Add all the above orders to the result dict
                 result[product] = orders
 
