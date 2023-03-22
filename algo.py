@@ -63,6 +63,80 @@ class Trader:
         # print(state.market_trades)
         # Iterate over all the keys (the available products) contained in the order depths
         for product in state.order_depths.keys():
+            if product == 'PEARLS':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+                try:
+                    position = state.position[product]
+                except KeyError:
+                    position = 0
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+
+                # Define a fair value for the PEARLS.
+                acceptable_price = 10000
+
+                # to see if there are available trades in the market
+                available_to_buy = False
+                available_to_sell = False
+
+                # If statement checks if there are any SELL orders in the PEARLS market
+                if len(order_depth.sell_orders) > 0:
+                    available_to_buy = True # other people are selling ergo we can buy
+                    # buy everything below our acceptable price
+                    asks = list(order_depth.sell_orders.keys())
+                    asks = sorted(asks)
+                    min_profit = 0
+                    for ask in asks:
+                        if ask < acceptable_price-min_profit:
+                            vol = order_depth.sell_orders[ask]
+                            order_size = min(-vol, assets[product].limit-position)
+                            if order_size > 0:
+                                position = position + order_size
+                                print("BUY", product, str(order_size) + "x", ask, 'position:', position)
+                                orders.append(Order(product, ask, order_size))
+                            else:
+                                print('MISSED buy of ',product, str(vol) + "x", ask, 'position:', position)
+                    assets[product].update_ask_prices(asks[0])
+
+                if len(order_depth.buy_orders) != 0:
+                    available_to_sell = True # other people are buying ergo we can sell
+                    # sell everything above our acceptable price
+                    bids = list(order_depth.buy_orders.keys())
+                    bids = sorted(bids, reverse=True)
+                    for bid in bids:
+                        if bid > acceptable_price:
+                            vol = order_depth.buy_orders[bid]
+                            order_size = min(vol, assets[product].limit+position)
+                            if order_size > 0:
+                                position = position - order_size
+                                print("SELL", product, str(order_size) + "x", bid,  'position:', position)
+                                orders.append(Order(product, bid, -order_size))
+                            else:
+                                print('MISSED sell of ',product, str(vol) + "x", bid, 'position:', position)
+                    assets[product].update_bid_prices(bids[0])
+
+                #MarketMaking
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+                threshold = 6
+                spread = min(list(order_depth.sell_orders.keys()))-max(list(order_depth.buy_orders.keys()))
+                if spread >= threshold:
+                    #adjust volumes later
+                    #bid
+                    bid_size = np.floor(10*(1-position/20))
+                    bid = max(order_depth.buy_orders.keys())+1
+                    orders.append(Order(product, bid, bid_size))
+                    #print('Spread: ', spread, "MM BUY", product, str(bid_size) + "x", bid, 'position:', position)
+                    #ask
+                    ask_size = -np.floor(10*(1+position/20))
+                    ask = min(order_depth.sell_orders.keys())-1
+                    orders.append(Order(product, ask, ask_size))
+                    print('Spread:', spread, "MM BUY", product, str(bid_size) + "x", bid, 'position:', position, "MM SELL", product, str(-ask_size) + "x", ask,  'position:', position)
+
+                # Add all the above orders to the result dict
+                result[product] = orders
             if product == 'BANANAS':
 
                 # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
