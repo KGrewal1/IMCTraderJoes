@@ -50,7 +50,7 @@ class Trader:
                 "PEARLS":Asset(20, 10, 10),
                 "BANANAS":Asset(20, 10, 10),
                 "COCONUTS":Asset(600, 10, 10),
-                "PINA_COLADAS":Asset(300, 10, 10),
+                "PINA_COLADAS":Asset(300, 10, 5),
             }
         self.asset_dicts = assets
         self.printing = printing
@@ -139,16 +139,16 @@ class Trader:
                             orders_C.append(Order('COCONUTS', best_bid_C, -order_size_C))
 
                         # if both cross in opposite directions assume they are going to normalise and hedge
-                        # we want to buy the undervalued PC and hedge it selling the overvalued C
+                        # we want to go to 0 position
                         if fast_avg_C < best_bid_C:
                             order_size_PC = min(-best_ask_volume_PC, limit_PC-position_PC)
-                            order_size_C = min(best_bid_volume_C, limit_C+position_C)
+                            order_size_C = min(-best_ask_volume_C, limit_C-position_C)
 
                             print("BUY", 'PINA_COLADAS', str(order_size_PC) + "x", best_bid_PC)
                             orders_PC.append(Order('PINA_COLADAS', best_bid_PC, order_size_PC))
 
-                            print("SELL", 'COCONUTS', str(order_size_C) + "x", best_bid_C)
-                            orders_C.append(Order('COCONUTS', best_bid_C, -order_size_C))
+                            # print("BUY", 'COCONUTS', str(order_size_C) + "x", best_bid_C)
+                            # orders_C.append(Order('COCONUTS', best_bid_C, order_size_C))
 
 
                     #see if the bid of PC moves above the MA
@@ -165,16 +165,16 @@ class Trader:
                             orders_C.append(Order('COCONUTS', best_bid_C, order_size_C))
 
                         # if both cross in opposite directions assume they are going to normalise and hedge
-                        # we want to buy the undervalued PC and hedge it selling the overvalued C
+                        # we want to go to 0 position
                         if fast_avg_C > best_ask_C:
                             order_size_PC = min(best_bid_volume_PC, limit_PC+position_PC)
-                            order_size_C = min(-best_ask_volume_C, limit_C-position_C)
+                            order_size_C = min(best_bid_volume_C, limit_C+position_C)
 
                             print("SELL", 'PINA_COLADAS', str(order_size_PC) + "x", best_bid_PC)
                             orders_PC.append(Order('PINA_COLADAS', best_bid_PC, -order_size_PC))
 
-                            print("BUY", 'COCONUTS', str(order_size_C) + "x", best_bid_C)
-                            orders_C.append(Order('COCONUTS', best_bid_C, order_size_C))
+                            # print("SELL", 'COCONUTS', str(order_size_C) + "x", best_bid_C)
+                            # orders_C.append(Order('COCONUTS', best_bid_C, -order_size_C))
 
 
 
