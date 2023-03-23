@@ -70,12 +70,12 @@ class Trader:
             if product == 'PINA_COLADAS':
                 # Initialize the list of Orders to be sent as an empty list
                 orders_PC: list[Order] = []
-                orders_C: list[Order] = []
                 limit_PC = assets['PINA_COLADAS'].limit
 
                 # Retrieve the Order Depth containing all the market BUY and SELL orders
 
-                order_depth: OrderDepth = state.order_depths['PINA_COLADAS']
+                order_depth_PC: OrderDepth = state.order_depths['PINA_COLADAS']
+
 
                 try:
                     position_PC = state.position['PINA_COLADAS']
@@ -83,17 +83,22 @@ class Trader:
                     position_PC = 0
 
                 # If statement checks if there are any SELL orders in the BANANAS market
-                if len(order_depth.sell_orders) > 0:
-                    best_ask_PC = min(order_depth.sell_orders.keys())
-                    best_ask_volume_PC = order_depth.sell_orders[best_ask_PC]
+                if len(order_depth_PC.sell_orders) > 0:
+                    best_ask_PC = min(order_depth_PC.sell_orders.keys())
+                    best_ask_volume_PC = order_depth_PC.sell_orders[best_ask_PC]
                     assets['PINA_COLADAS'].update_ask_prices(best_ask_PC)
 
-                if len(order_depth.buy_orders) != 0:
-                    best_bid_PC = max(order_depth.buy_orders.keys())
-                    best_bid_volume_PC = order_depth.buy_orders[best_bid_PC]
+                if len(order_depth_PC.buy_orders) != 0:
+                    best_bid_PC = max(order_depth_PC.buy_orders.keys())
+                    best_bid_volume_PC = order_depth_PC.buy_orders[best_bid_PC]
                     assets['PINA_COLADAS'].update_bid_prices(best_bid_PC)
 
                 mid_PC = (best_ask_PC+best_bid_PC)/2
+
+
+
+                orders_C: list[Order] = []
+                order_depth_C: OrderDepth = state.order_depths['COCONUTS']
 
                 limit_C = assets['COCONUTS'].limit
                 try:
@@ -102,14 +107,14 @@ class Trader:
                     position_C = 0
 
                 # If statement checks if there are any SELL orders in the BANANAS market
-                if len(order_depth.sell_orders) > 0:
-                    best_ask_C = min(order_depth.sell_orders.keys())
-                    best_ask_volume_C = order_depth.sell_orders[best_ask_C]
+                if len(order_depth_C.sell_orders) > 0:
+                    best_ask_C = min(order_depth_C.sell_orders.keys())
+                    best_ask_volume_C = order_depth_C.sell_orders[best_ask_C]
                     assets['COCONUTS'].update_ask_prices(best_ask_C)
 
-                if len(order_depth.buy_orders) != 0:
-                    best_bid_C = max(order_depth.buy_orders.keys())
-                    best_bid_volume_C = order_depth.buy_orders[best_bid_C]
+                if len(order_depth_C.buy_orders) != 0:
+                    best_bid_C = max(order_depth_C.buy_orders.keys())
+                    best_bid_volume_C = order_depth_C.buy_orders[best_bid_C]
                     assets['COCONUTS'].update_bid_prices(best_bid_C)
 
                 mid_C = (best_ask_C+best_bid_C)/2
@@ -117,8 +122,8 @@ class Trader:
 
                 # calculate whether to make a hedge or to go directional
                 if len(assets[product].ask_prices)>=assets[product].period:
-                    fast_avg_PC= (sum(assets[product].ask_prices[-assets[product].fast_period:])+sum(assets[product].bid_prices[-assets[product].fast_period:]))/(2*assets[product].fast_period)
-                    fast_avg_C= (sum(assets[product].ask_prices[-assets[product].fast_period:])+sum(assets[product].bid_prices[-assets[product].fast_period:]))/(2*assets[product].fast_period)
+                    fast_avg_PC= (sum(assets['PINA_COLADAS'].ask_prices[-assets['PINA_COLADAS'].fast_period:])+sum(assets['PINA_COLADAS'].bid_prices[-assets['PINA_COLADAS'].fast_period:]))/(2*assets['PINA_COLADAS'].fast_period)
+                    fast_avg_C= (sum(assets['COCONUTS'].ask_prices[-assets['COCONUTS'].fast_period:])+sum(assets['COCONUTS'].bid_prices[-assets['COCONUTS'].fast_period:]))/(2*assets['COCONUTS'].fast_period)
 
                     #see if the ask of PC moves below the MA
                     if fast_avg_PC > best_ask_PC:
