@@ -115,10 +115,12 @@ class Trader:
         self.short = False
         self.long = False
         self.resMA = []
-        self.zscore = None
+        self.zscore_long = None
+        self.zscore_short= None
         self.zscore_low = -0.5 #edit
-        self.zscore_high = 3
-        self.mkf = MyKalmanFilter(delta=1e-4, R=1e-3)
+        self.zscore_high = 2.5
+        self.mkf_short = MyKalmanFilter(delta=1e-4, R=1e3)
+        self.mkf_long = MyKalmanFilter(delta=1e-4, R=1e3)
         self.burnt_in = False
 
     def get_data(self, order_depth):
@@ -136,7 +138,9 @@ class Trader:
         Only method required. It takes all buy and sell orders for all symbols as an input,
         and outputs a list of orders to be sent
         """
-        mkf = self.mkf
+
+        mkf_long = self.mkf_long
+        mkf_short = self.mkf_short
         assets = self.asset_dicts
         # Initialize the method output dict as an empty dict
         result = {}
@@ -155,16 +159,23 @@ class Trader:
         best_ask_pina, best_ask_volume_pina, best_bid_pina, best_bid_volume_pina, mid_pina = self.get_data(
             order_depth_pina)
         # Calculate residuals
+        hedge_ratio = 1.875
         if mid_coconut is not None and mid_pina is not None:
-            x, _, _, z_hat = mkf.step_forward(mid_pina, mid_coconut)
-            hedge_ratio = x[0].squeeze()
-            self.zscore = (mid_pina - z_hat.squeeze())/1.7
+            # when we short the spread we sell pina at best bid and buy coco at best ask
+            _, _, _, z_hat = mkf_short.step_forward(best_bid_pina, best_ask_coconut) # x, _, _, z_hat = mkf_short.step_forward(best_bid_pina, best_ask_coconut)
+            # hedge_ratio_short = x[0].squeeze()
+            self.zscore_short = (best_bid_pina - z_hat.squeeze())/1.7
+            # when we long the spread we buy pina at best ask and sell coco at best bid
+            _, _, _, z_hat = mkf_long.step_forward(best_ask_pina, best_bid_coconut)
+            # hedge_ratio_short = x[0].squeeze()
+            self.zscore_long = (best_ask_pina - z_hat.squeeze())/1.7
+        # print(self.zscore_short, self.zscore_long)
         if state.timestamp==10000:
             self.burnt_in = True
 
         if self.burnt_in:
             # entry signal SHORT res
-            if self.zscore >= self.zscore_high and not self.short: # 1
+            if self.zscore_short >= self.zscore_high and not self.short and not self.long: # 1
                 # SELL PINA overpriced, BUY COCONUT underpriced; pina and coconut volume 1:2
                 self.short = True #allow multiple trades
                 bid_product = "COCONUTS"
@@ -174,14 +185,14 @@ class Trader:
                 pina_order_size = np.floor(min(bid_volume/hedge_ratio, ask_volume))
                 # trade possible if size is positive
                 if pina_order_size > 0:
-                    print('z-score:', self.zscore)
+                    print('short z-score:', self.zscore_short)
                     print('mids: ', mid_pina, ' ', mid_coconut)
                     print("BUY", bid_product, str(np.round(hedge_ratio*pina_order_size)) + "x", best_ask_coconut)
                     orders_coconut.append(Order(bid_product, best_ask_coconut, np.round(hedge_ratio*pina_order_size)))
                     print("SELL", ask_product, str(pina_order_size) + "x", best_bid_pina)
                     orders_pina.append(Order(ask_product, best_bid_pina, -pina_order_size))
             #entry signal LONG res
-            elif self.zscore <= -self.zscore_high and not self.long:
+            elif self.zscore_long <= -self.zscore_high and not self.long and not self.short:
                 # SELL COCONUT overpriced, BUY PINA underpriced,
                 self.long = True #allow multiple trades
                 bid_product = "PINA_COLADAS"
@@ -191,15 +202,15 @@ class Trader:
                 pina_order_size = np.floor(min(bid_volume, ask_volume/hedge_ratio))
                 # TODO: TREAT VOLUME SEPARATELY?
                 if pina_order_size > 0:
-                    print('z-score:', self.zscore)
+                    print('long z-score:', self.zscore_long)
                     print('mids: ', mid_pina, ' ', mid_coconut)
                     print("BUY", bid_product, str(pina_order_size) + "x", best_ask_pina)
                     orders_pina.append(Order(bid_product, best_ask_pina, pina_order_size))
                     print("SELL", ask_product, str(np.round(hedge_ratio*pina_order_size)) + "x", best_bid_coconut)
                     orders_coconut.append(Order(ask_product, best_bid_coconut, -np.round(hedge_ratio*pina_order_size)))
             # exit signal for long trades
-            elif self.long and self.zscore >= -self.zscore_low:
-                print('z-score:', self.zscore)
+            elif self.long and self.zscore_short >= -self.zscore_low:
+                print('Exiting long: short z-score:', self.zscore_short)
                 print('mids: ', mid_pina, ' ', mid_coconut)
                 self.long = False
                 product = "COCONUTS"
@@ -225,8 +236,8 @@ class Trader:
                     orders_pina.append(Order(product, best_ask_pina, -volume))
 
             # exit signal for short trades
-            elif self.short and self.zscore <= self.zscore_low:
-                print('z-score:', self.zscore)
+            elif self.short and self.zscore_long <= self.zscore_low:
+                print('Exiting short: long z-score:', self.zscore_long)
                 print('mids: ', mid_pina, ' ', mid_coconut)
                 self.short = False
                 product = "COCONUTS"
