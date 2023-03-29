@@ -15,23 +15,35 @@ def limtransform(pos, max_limit, buyers, sellers):
 
 
 class MyKalmanFilter:
-    """Kalman filter for trading pairs"""
-    def __init__(self, delta=1e-4, R=1e-3):
+
+    def __init__(self, delta=1e-4, R=1e-3, mem=2):
+        # number of states to remember
+        self.mem = mem
+
         # measurement noise variance
         self.R = R
 
         # co-variance of process noise(2 dimensions)
-        self.Q = delta / (1-delta) * np.eye(2)
+        self.Q = delta / (1-delta) * np.eye(mem)
 
         # previous state
-        self.x = np.zeros((2, 1))
+        self.x = np.zeros((mem, 1))
+
+        # keeps track of y2
+        self.y2 = [0] * mem
+
+        # keeps track of y2
+        self.y2 = [0] * mem
 
         # state covariance
-        self.P = np.zeros((2,2))
+        self.P = np.zeros((mem,mem))
 
     def step_forward(self, y1, y2):
+        self.y2.pop(0)
+        self.y2.append(y2)
+
         # Before entering the equations, let's define H as (1, 2) matrix
-        H = np.array([y2, 1])[None]
+        H = np.array(self.y2)[None]
         # and define z
         z = y1
 
@@ -53,7 +65,7 @@ class MyKalmanFilter:
         x = x_hat + K.dot(z-z_hat)
 
         # uncertainty update
-        self.P = (np.eye(2)-K.dot(H)).dot(P_hat)
+        self.P = (np.eye(self.mem)-K.dot(H)).dot(P_hat)
 
         # refresh the previous state
         self.x = x
@@ -119,8 +131,8 @@ class Trader:
         self.zscore_short= None
         self.zscore_low = -0.5 #edit
         self.zscore_high = 2.5
-        self.mkf_short = MyKalmanFilter(delta=1e-4, R=1e3)
-        self.mkf_long = MyKalmanFilter(delta=1e-4, R=1e3)
+        self.mkf_short = MyKalmanFilter(delta=1e-4, R=1e3, mem = 50)
+        self.mkf_long = MyKalmanFilter(delta=1e-4, R=1e3, mem = 50)
         self.burnt_in = False
 
     def get_data(self, order_depth):
