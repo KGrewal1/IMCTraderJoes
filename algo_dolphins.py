@@ -59,22 +59,27 @@ class Trader:
                 "BANANAS":Asset(20, 10, 10),
                 "COCONUTS":Asset(600, 670, 10),
                 "PINA_COLADAS":Asset(300, 670, 10),
+                "DIVING_GEAR":Asset(50, 670, 10),
             }
         self.asset_dicts = assets
         self.printing = printing
         self.position = {"PEARLS": 0, "BANANAS": 0,
-                    "COCONUTS": 0, "PINA_COLADAS": 0}
+                    "COCONUTS": 0, "PINA_COLADAS": 0, 'DIVING_GEAR': 0}
         self.last_obs = None
+        self.buy_gear = False
+        self.sell_gear = False
 
     def get_data(self, order_depth):
         if len(order_depth.sell_orders) > 0:
-            best_ask = min(order_depth.sell_orders.keys())
+            asks = sorted(order_depth.sell_orders.keys())
+            best_ask = asks[0]
             best_ask_volume = order_depth.sell_orders[best_ask]
         if len(order_depth.buy_orders) != 0:
-            best_bid = max(order_depth.buy_orders.keys())
+            bids = sorted(order_depth.buy_orders.keys(), reverse=True)
+            best_bid = bids[0]
             best_bid_volume = order_depth.buy_orders[best_bid]
             mid = (best_ask+best_bid)/2
-        return best_ask, best_ask_volume, best_bid, best_bid_volume, mid
+        return best_ask, best_ask_volume, best_bid, best_bid_volume, mid, asks, bids
 
     def run(self, state: TradingState) -> Dict[str, List[Order]]:
         """
@@ -82,8 +87,11 @@ class Trader:
         and outputs a list of orders to be sent
         """
         assets = self.asset_dicts
+        order_depth_gear = state.order_depths["DIVING_GEAR"]
+        best_ask_gear, best_ask_volume_gear, best_bid_gear, best_bid_volume_gear, _, all_asks, all_bids = self.get_data(order_depth_gear)
         # Initialize the method output dict as an empty dict
         result = {}
+        orders_gear: list[Order] = []
 
         for product in state.position.keys():
             self.position[product] = state.position[product]
@@ -95,9 +103,51 @@ class Trader:
             delta = observations-self.last_obs
             self.last_obs = observations
         print(delta)
-        if abs(delta)>5:
-            print('spike')
+        if delta>=5 or self.buy_gear:
+            self.buy_gear = True
+            self.sell_gear = False
+            print('spike up')
+            print('buy diving gear')
+            bid_product = "DIVING_GEAR"
+            print(best_ask_gear)
+            print(all_asks)
+            order_size = min(-best_ask_volume_gear, assets[bid_product].limit - self.position[bid_product])
+            if order_size>0:
+                print("BUY", bid_product, str(order_size) + "x", best_ask_gear)
+                orders_gear.append(Order(bid_product, best_ask_gear, order_size))
+                try:
+                    second_vol = order_depth_gear.sell_orders[all_asks[1]]
+                    second_order_size = min(-second_vol, assets[bid_product].limit - self.position[bid_product]-order_size)
+                    print("BUY", bid_product, str(second_order_size) + "x", all_asks[1])
+                    orders_gear.append(Order(bid_product, all_asks[1], second_order_size))
+                except: pass
+            else:
+                self.sell_gear = False
+                self.buy_gear = False
             print(delta)
+        if delta<= -5 or self.sell_gear:
+            self.sell_gear = True
+            self.buy_gear = False
+            print('spike down')
+            print('sell diving gear')
+            ask_product = "DIVING_GEAR"
+            print(best_bid_gear)
+            print(all_bids)
+            order_size = min(best_bid_volume_gear,assets[ask_product].limit + self.position[ask_product])
+            if order_size>0:
+                print("SELL", ask_product, str(order_size) + "x", best_bid_gear)
+                orders_gear.append(Order(ask_product, best_bid_gear, -order_size))
+                try:
+                    second_vol = order_depth_gear.buy_orders[all_bids[1]]
+                    second_order_size = min(second_vol,assets[ask_product].limit + self.position[ask_product]-order_size)
+                    print("SELL", ask_product, str(second_order_size) + "x", all_bids[1])
+                    orders_gear.append(Order(ask_product, all_bids[1], -second_order_size))
+                except: pass
+            else:
+                self.sell_gear = False
+                self.buy_gear = False
+            print(delta)
+        result["DIVING_GEAR"] = orders_gear
 
         # Pair trading COCONUTS and PINA_COLADAS
 #         orders_coconut: list[Order] = []
@@ -224,7 +274,7 @@ class Trader:
 #             # Add all the above orders to the result dict
 #             result["COCONUTS"] = orders_coconut
 #             result["PINA_COLADAS"] = orders_pina
-#         if len(result) != 0:
-#             print(result)
+        # if len(result) != 0:
+        #     print(result)
         # Return the dict of orders
         return result
